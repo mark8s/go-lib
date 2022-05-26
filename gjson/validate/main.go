@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/tidwall/gjson"
+	"strings"
 )
 
 func main() {
@@ -14,4 +15,8 @@ func main() {
 	} else {
 		fmt.Println("ok")
 	}
+
+	name := "profiles/default.yaml"
+	cannonicalName := strings.Replace(name, "\\", "/", -1)
+	fmt.Println(cannonicalName)
 }
