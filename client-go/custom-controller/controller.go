@@ -1,8 +1,9 @@
 package main
 
 import (
-	"flag"
 	"fmt"
+	"k8s.io/client-go/util/homedir"
+	"path/filepath"
 	"time"
 
 	"k8s.io/klog"
@@ -125,26 +126,18 @@ func (c *Controller) runWorker() {
 	}
 }
 
+func InitClientSet() *kubernetes.Clientset {
+	kubeconfig := filepath.Join(homedir.HomeDir(), ".kube", "config")
+	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		panic(err)
+	}
+	return kubernetes.NewForConfigOrDie(restConfig)
+}
+
 func main() {
-	var kubeconfig string
-	var master string
-
-	flag.StringVar(&kubeconfig, "kubeconfig", "C:\\Users\\mark\\.kube\\config", "absolute path to the kubeconfig file")
-	flag.StringVar(&master, "master", "https://10.10.13.118:6443", "master url")
-	flag.Parse()
-
-	// creates the connection
-	config, err := clientcmd.BuildConfigFromFlags(master, kubeconfig)
-	if err != nil {
-		klog.Fatal(err)
-	}
-
 	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		klog.Fatal(err)
-	}
-
+	clientset := InitClientSet()
 	// create the pod watcher
 	podListWatcher := cache.NewListWatchFromClient(clientset.CoreV1().RESTClient(), "pods", "demo", fields.Everything())
 
