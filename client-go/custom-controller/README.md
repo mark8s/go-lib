@@ -55,7 +55,8 @@ client-go/tool/cache/ 和自定义控制器流程:
 
 如果你想连接你的 CRD，你可以按照这个说明为你的 CRD 资源生成客户端、informer 等。然后，您可以在自定义控制器中使用生成的 SharedInformer。
 
-
+## 参考
+[Controller实战-标准Controller](https://www.cnblogs.com/HopeGi/p/15313512.html)
 
 
 
