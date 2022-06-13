@@ -28,18 +28,15 @@ func (c *CleanUpController) SetupWithManager(mgr ctrl.Manager) error {
 		For(&v1.Pod{}).
 		WithEventFilter(predicate.ResourceVersionChangedPredicate{}).
 		Complete(c)
-	if err != nil {
-		klog.Info("CleanUpController setup error.", err)
-		return err
-	}
 	return err
 }
 
 func (c *CleanUpController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	klog.Info("CleanUpController Reconcile is running... ")
 	var actual v1.Pod
 	key := client.ObjectKey{Namespace: req.Namespace, Name: targetPodName}
 	if err := c.client.Get(ctx, key, &actual); err != nil {
-		klog.Info("nginx-clean pod was deleted")
+		klog.Info("nginx-clean pod was deleted. ")
 
 		klog.Info("Let's start clean up task ...")
 	}
