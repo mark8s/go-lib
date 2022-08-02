@@ -306,9 +306,406 @@ func main() {
 正如我们所看到的，循环是在通道发送的所有值上完成的。程序按预期输出。发送值后也应该关闭通道。
 
 
+## Multiple goroutines in GoLang
+在这篇文章中，我们将看到如何使用多个 goroutine。
+
+### Multiple Goroutines Simple Example
+这段代码展示了两个 goroutine 在并发运行时如何交互。输出顺序将不会被维护，并且每次运行该程序时它可能会产生一个全新的输出。
+
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func f(s string) {
+	for _, c := range s {
+		fmt.Print(string(c), " ")
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func main() {
+	// run two different goroutine
+	go f("Hello")
+	go f("World")
+
+	// sleep main goroutine
+	time.Sleep(1 * time.Second)
+}
+```
+
+输出符合预期，看起来像这样。
+```shell
+W H e o r l l l d o 
+```
+
+### Nested Goroutines（嵌套Goroutines）
+现在我们将看看如果我们嵌套两个 goroutine 会发生什么。 Goroutine 可以嵌套到任意深度，并且在许多情况下输出会更加随机。这是一个例子。
+
+```go
+package main
+ 
+import (
+    "fmt"
+    "time"
+)
+ 
+func g(v int) {
+    fmt.Println(v*2, v*v, " ")
+}
+ 
+func SpawnGoroutines(n int) {
+    for i := 0; i < n; i++ {
+        go g(i)
+    }
+}
+ 
+func main() {
+ 
+    go SpawnGoroutines(10)
+ 
+    // sleep main goroutine
+    time.Sleep(1 * time.Second)
+}
+```
+
+输出：
+```go
+2 1  
+18 81  
+4 4  
+6 9  
+8 16  
+10 25  
+0 0  
+12 36  
+14 49  
+16 64
+```
+
+### Communication through Channels（Channel通信）
+Goroutine 可以通过通道进行通信。它是一个帮助在两个 goroutine 之间传递信息的管道。这是一个例子。
+
+```go
+package main
+ 
+import (
+    "fmt"
+    "time"
+)
+ 
+func f(ch chan int) {
+    for i := 0; i < 10; i++ {
+        // send data to the channel
+        ch <- i
+    }
+ 
+    // close the channel
+    close(ch)
+}
+ 
+func g(ch chan int) {
+    // loop over the data from the channel
+    for v := range ch {
+        fmt.Print(v, " ")
+    }
+}
+ 
+func main() {
+    ch := make(chan int)
+ 
+    // send data to the channel
+    go f(ch)
+ 
+    // receive from the channel
+    go g(ch)
+ 
+    // sleep main goroutine
+    time.Sleep(1 * time.Second)
+}
+
+```
+输出：
+```go
+0 1 2 3 4 5 6 7 8 9 
+```
+
+可以看出，通道是多个 goroutine 通信的方式。
+
+## Select statement in GoLang
+GoLang select 语句类似于 switch 语句，用于多通道操作。在提供的任何案例准备好之前，此语句会阻塞。这篇文章将探讨 Go 编程语言中的 select 语句。
+
+### GoLang Select Statement Syntax
+select 语句的语法类似于 switch 语句。这真的很容易使用。
+
+```go
+select {
+    case case1:
+        // case 1...
+    case case2:
+        // case 2...
+    case case3:
+        // case 3...
+    case case4:
+        // case 4...
+    default:
+                // default case...
+}
+```
+
+让我们看一个 select 语句的例子。
+
+### Select Statement Example
+
+这是一个 select 语句的示例，它显示了它是如何工作的。 Select 语句的工作方式类似于 switch 语句，但它没有具体的情况，而是使用通道发送或接收操作。
+
+```go
+package main
+ 
+import (
+    "fmt"
+)
+ 
+func g1(ch chan int) {
+    ch <- 12
+}
+ 
+func g2(ch chan int) {
+    ch <- 32
+}
+ 
+func main() {
+ 
+    ch1 := make(chan int)
+    ch2 := make(chan int)
+ 
+    go g1(ch1)
+    go g2(ch2)
+ 
+    select {
+    case v1 := <-ch1:
+        fmt.Println("Got: ", v1)
+    case v2 := <-ch2:
+        fmt.Println("Got: ", v2)
+    }
+}
+```
+
+输出：
+```go
+Got:  12
+````
+或
+```go
+Got:  32
+```
+
+我们得到的输出完全取决于当时执行的内容。它只是随机的。我们无法预测输出，因为 select 的工作方式非常不同。如果所有语句都准备好执行，它会选择任何输出。
+
+准备好执行：channel中可以取出数据
+
+上面没有设置 default case，所以在 ch1 和 ch2 塞入了value之前，main goroutine都会被阻塞。
+
+### The default case in select statement
+
+如果没有其他case准备好执行，则执行默认case（default case）。它可以防止 select 阻塞主 goroutine，因为默认情况下操作是阻塞的。
+
+```go
+package main
+ 
+import (
+    "fmt"
+)
+ 
+func g1(ch chan int) {
+    ch <- 42
+}
+ 
+func g2(ch chan int) {
+    ch <- 43
+}
+ 
+func main() {
+ 
+    ch1 := make(chan int)
+    ch2 := make(chan int)
+ 
+    go g1(ch1)
+    go g2(ch2)
+ 
+    select {
+    case v1 := <-ch1:
+        fmt.Println("Got: ", v1)
+    case v2 := <-ch2:
+        fmt.Println("Got: ", v2)
+    default:
+        fmt.Println("The default case!")
+    }
+    
+    // 
+}
+
+```
+
+output:
+
+```go
+The default case!
+```
+
+在上面的程序中，由于 goroutine 没有足够的时间来产生输出，所以会打印默认情况。因此，将打印默认值。
+
+现在，我们可以尝试让主线程休眠，输出将完全不同。 
+
+```go
+// add 
+time.Sleep(100 * time.Second)
+```
+outout:
+```go
+Got:  42
+```
+
+这表明 select 完全根据先发生的事情或简单地首先得到的事情来选择执行用例。
+
+### The empty select statement
+当我们在程序中使用空的 select 语句时，select 语句将永远阻塞，因为没有 goroutine 可用于提供任何数据。因此，主 goroutine 引发了恐慌并停止了死锁。
+
+```go
+package main
+ 
+func main() {
+    select {}
+}
+```
+
+The output becomes something like this:
+```shell
+fatal error: all goroutines are asleep - deadlock!
+
+goroutine 1 [select (no cases)]:
+main.main()
+	D:/mark/project/go-lib/goroutines/select/demo3/example.go:4 +0x17
+
+Process finished with the exit code 2
+```
+
+### Uses of the select statement in Go（Go中select的使用）
+
+当多个 goroutine 通过通道发送数据时使用 select 语句，然后 select 语句同时接收数据并在所有准备就绪时随机选择 case。
+如果没有case准备好，那么如果之前已经提供了default case，它只会输出default case。
+
+这显示了 select 语句的多功能性，该语句**用于有选择地从多个提供程序通道获取数据**。
+
+## Waitgroups in GoLang
+在 Go 中进行并发编程时，可以看到 goroutine 可能没有执行，主线程在执行完之前就停止了。这是做并发编程时经常出现的问题。 Waitgroups 以一种简单的方式解决了这个问题。
+
+### How GoLang waitgroups work?
+Waitgroup 是一种阻塞机制，当该组内的所有 goroutine 都没有执行时，它会阻塞。如果一个 goroutine 完成，它就会解除对组的阻塞。
+
+### GoLang Waitgroup example
+这是一个示例，说明如何将等待组与 goroutine 一起使用。
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+// pass waitgroup as a pointer
+func f(wg *sync.WaitGroup) {
+	// do work
+	fmt.Println("Working...")
+
+	// call done
+	wg.Done()
+}
+
+func main() {
+	var wg sync.WaitGroup
+	// add to the waitgroup counter
+	wg.Add(1)
+
+	// pass waitgroup as a pointer
+	go f(&wg)
+
+	// call wait
+	wg.Wait()
+	fmt.Println("Done working!")
+}
+
+```
+
+output:
+```go
+Working...
+Done working!
+```
+
+在上面的代码中，我们首先使用了 add 函数，它告诉等待组要阻塞多少个 goroutine。然后我们简单地将组作为指向 goroutine 的指针传递。
+当 goroutine 完成工作时，我们调用 Done 方法告诉等待组停止阻塞。
+
+### Waitgroups with the anonymous function
+
+等待组也可以与匿名函数一起使用。这真的很简单。我们不使用另一个函数通过 goroutine 调用，而是使用匿名函数并做同样的事情。
+
+Here is an example.
+
+```go
+package main
+ 
+import (
+    "fmt"
+    "sync"
+)
+ 
+func main() {
+    var wg sync.WaitGroup
+    wg.Add(1)
+    go func() {
+        fmt.Println("Running anonymous function")
+        wg.Done()
+    }()
+    wg.Wait()
+    fmt.Println("Done executing")
+}
+
+```
+
+output:
+```shell
+Running anonymous function
+Done executing
+```
+
+可以看出，匿名函数几乎相同。
+
+### Importance of Go waitgroups
+GoLang 等待组很重要，因为它们允许 goroutine 阻塞线程并执行它。没有它，我们需要手动休眠主线程以让 goroutine 执行。
+等待组也可用于不同的用例，使其成为处理 goroutine 执行的最通用方式。
+
+
 # Reference
 [Goroutines in GoLang](https://golangdocs.com/goroutines-in-golang)
 
 [Channels in GoLang](https://golangdocs.com/channels-in-golang)
+
+[Multiple goroutines in GoLang](https://golangdocs.com/multiple-goroutines-in-golang)
+
+[Select statement in GoLang](https://golangdocs.com/select-statement-in-golang)
+
+[Waitgroups in GoLang](https://golangdocs.com/waitgroups-in-golang)
+
+
+
+
+
+
+
 
 
