@@ -116,12 +116,199 @@ func main() {
 ## Channels in GoLang
 通道是 goroutine 用来进行有效通信的媒介。这是理解 goroutines 是如何工作的之后要掌握的最重要的概念。这篇文章旨在详细解释通道的工作原理及其在 Go 中的用例。
 
+### GoLang Channels syntax
+为了使用通道，我们必须首先创建它。我们有一个非常方便的函数 make 可以用来创建通道。通道取决于它携带的数据类型。这意味着我们不能通过 int 通道发送字符串。因此，我们需要创建一个特定于其目的的通道。
 
+以下是我们创建Channel的方式。 chan 是一个关键字，用于使用 make 函数声明通道。
+```go
+// a channel that only carries int
+ic := make(chan int)
+```
 
+要使用通道发送和接收数据，我们将使用通道运算符 `<-`
 
+```go
+ic <- 42         // send 42 to the channel
+v := <-ic        // get data from the channel
+```
 
+未初始化或零值的通道为零(nil)。
+```go
+var ch chan int
+fmt.Println(ch)    // <nil>
+```
+
+### Working with channels
+
+现在，我们将尝试使用通道发送和接收数据。让我们从创建一个基本的 goroutine 开始，它将向通道发送数据，主goroutine从此通道中取数据。
+
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func PrintName(f string, l string) {
+	fmt.Println(f, l)
+}
+
+func main() {
+	var i int
+	go func() {
+		for i = 0; i < 7; i++ {
+			fmt.Print(i, " ")
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
+	time.Sleep(1 * time.Second)
+	PrintName("John", "Doe")
+}
+```
+
+在这里，在这个例子中，我们通过 goroutine 发送数据并相应地接收数据。现在，我们将尝试发送自定义数据，例如结构。
+
+### Sending custom data via channels
+
+自定义数据可以像任何其他数据类型一样发送。创建和使用通道时，我们需要注意在创建通道时使用正确的数据类型。这是一个通过通道发送 Person 结构的示例。
+
+```go
+package main
+ 
+import (
+    "fmt"
+    // "time"
+)
+ 
+type Person struct {
+    Name string
+    Age  int
+}
+ 
+func SendPerson(ch chan Person, p Person) {
+    ch <- p
+}
+ 
+func main() {
+ 
+    p := Person{"John", 23}
+ 
+    ch := make(chan Person)
+ 
+    go SendPerson(ch, p)
+ 
+    name := (<-ch).Name
+    fmt.Println(name)
+}
+```
+
+### The send and receive operation
+
+通道操作默认是阻塞的。这意味着当我们使用任何发送或接收操作时，通道会阻塞，除非工作完成。从而允许它们同步。
+
+### Using directional channels（使用定向channel）
+
+通道可以是单向的。这意味着可以声明通道，以便通道只能发送或接收数据。这是channel的一个重要属性。
+
+语法如下：
+```go
+ch := make(chan<- data_type)        // The channel operator is after the chan keyword
+                                    // 操作符在 chan 的后面
+                                    // The channel is send-only
+ 
+ch := make(<-chan data_type)        // The channel operator is before the chan keyword
+                                    // 操作符在 chan 的前面
+                                    // The channel is receive-only
+```
+
+```go
+package main
+ 
+func f(ch chan<- int, v int) {
+    ch <- v
+}
+ 
+func main() {
+        // send-only channel
+    ch := make(chan<- int)
+ 
+    go f(ch, 42)
+    go f(ch, 41)
+    go f(ch, 40)
+ 
+}
+```
+
+在上面的代码中，我们使用了一个仅发送通道的通道。这意味着数据只能发送到其中，但是当我们尝试从通道接收任何数据时，它会产生错误。
+
+### Closing a channel
+
+通过通道发送值后，可以关闭通道。 close 函数会执行此操作并生成一个布尔输出，然后可以使用该输出来检查它是否已关闭。channel关闭，布尔值为 true。
+
+```go
+package main
+
+import "fmt"
+
+func SendDataToChannel(ch chan string, s string) {
+	ch <- s
+	close(ch)
+}
+
+func main() {
+
+	ch := make(chan string)
+
+	go SendDataToChannel(ch, "Hello World!")
+
+	// receive the second value as ok
+	// that determines if the channel is closed or not
+	v, ok := <-ch
+
+	// check if closed
+	if ok {
+		fmt.Println("Channel closed")
+	}
+
+	fmt.Println(v) // Hello World!
+}
+```
+
+### Using a loop with a channel（使用带有通道的循环）
+范围循环可用于遍历通过通道发送的所有值。这是一个例子。
+
+```go
+package main
+
+import "fmt"
+
+func f(ch chan int, v int) {
+	ch <- v
+	ch <- v * 2
+	ch <- v * 3
+	ch <- v * 7
+	close(ch)
+}
+
+func main() {
+
+	ch := make(chan int)
+
+	go f(ch, 2)
+
+	for v := range ch {
+		fmt.Println(v)
+	}
+}
+```
+
+正如我们所看到的，循环是在通道发送的所有值上完成的。程序按预期输出。发送值后也应该关闭通道。
 
 
 # Reference
 [Goroutines in GoLang](https://golangdocs.com/goroutines-in-golang)
+
+[Channels in GoLang](https://golangdocs.com/channels-in-golang)
+
 
